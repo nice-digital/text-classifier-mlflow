@@ -1,0 +1,13 @@
+name: ModelHyperparameterTuning
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    parameters:
+      dataset_name: {type: str}
+      dataset_training_path: {type: str}
+      dataset_testing_path: {type: str}
+      model_type: {type: str, default: "logistic_regression"}
+      max_evals: {type: int, default: 50}
+    command: "python src/model_tuner.py --dataset_name {dataset_name} --dataset_training_path {dataset_training_path} --dataset_testing_path {dataset_testing_path} --model_type {model_type} --max_evals {max_evals}"

@@ -1,0 +1,9 @@
+name: mlflow-env
+dependencies:
+  - python=3.8
+  - pip:
+      - scikit-learn
+      - pandas
+      - numpy
+      - mlflow
+      - hyperopt
