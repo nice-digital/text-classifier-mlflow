@@ -76,6 +76,8 @@ class ModelHyperparameterTuner:
     def define_hyperparameter_space(self, model_type):
         if model_type == 'logistic_regression':
             return {
+                # parameter C stands for inverse regularisation strength. Smaller C indicates stronger regularisation
+                # 
                 'C': hp.loguniform('C', np.log(0.001), np.log(100)),
                 'max_iter': scope.int(hp.quniform('max_iter', 50, 500, 50)),
                 'solver': hp.choice('solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
@@ -94,7 +96,8 @@ class ModelHyperparameterTuner:
         elif model_type == 'random_forest':
             return self.random_forest_objective(params)
 
-    def logistic_regression_objective(self, params):
+    def logistic_regression_objective(self, params, thresholds=[0.1, 0.2, 0.3, 0.4, 0.5]):
+        # Convert hyperparameters to proper types if needed
         params['max_iter'] = int(params['max_iter'])
         solvers = ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']
         if isinstance(params['solver'], int):
@@ -103,34 +106,62 @@ class ModelHyperparameterTuner:
         run_name = f"Logistic2_C={params['C']:.2f}_max_iter={params['max_iter']}_solver={params['solver']}"
 
         with mlflow.start_run(run_name=run_name, nested=True):
+            # Initialize the logistic regression model
             model = LogisticRegression(**params, random_state=42)
 
-
-            # @title Fit logistic regression model (in progress) { form-width: "20%" }
-
-            # A sklearn pipeline comprising of tf-idf vectorizer (using tri-gram) and logistic regression model. The parameters for logistic regression
-            # are taken from prior hyper-parameter tuning.
+            # Create pipeline with TF-IDF vectorizer and logistic regression model
             text_clf = Pipeline([
                 ('tfidfvect', TfidfVectorizer(ngram_range=(3, 3), stop_words='english')),
-                ('clf',model)])
+                ('clf', model)
+            ])
 
+            # Train the classifier on training data
             classifier = text_clf.fit(self.X_train, self.y_train)
 
+            # Get predicted probabilities for the positive class (class 1)
+            y_pred_proba = classifier.predict_proba(self.X_test)[:, 1]
 
-            y_pred = classifier.predict(self.X_test)
+            # Initialize a variable to track the best recall for comparison
+            best_recall = 0
+            best_threshold = 0.5
 
-            accuracy = accuracy_score(self.y_test, y_pred)
-            precision = precision_score(self.y_test, y_pred, average='weighted')
-            recall = recall_score(self.y_test, y_pred, average='weighted')
-            f1 = f1_score(self.y_test, y_pred, average='weighted')
+            # Loop over the list of custom thresholds
+            for threshold in thresholds:
+                # Apply the threshold to convert probabilities into class predictions
+                y_pred_custom = (y_pred_proba >= threshold).astype(int)
 
-            mlflow.log_params(params)
-            mlflow.log_metric('accuracy', accuracy)
-            mlflow.log_metric('precision', precision)
-            mlflow.log_metric('recall', recall)
-            mlflow.log_metric('f1_score', f1)
+                # Calculate performance metrics based on the current threshold
+                recall = recall_score(self.y_test, y_pred_custom, average='weighted')
+                precision = precision_score(self.y_test, y_pred_custom, average='weighted')
+                accuracy = accuracy_score(self.y_test, y_pred_custom)
+                f1 = f1_score(self.y_test, y_pred_custom, average='weighted')
 
-            return {'loss': -accuracy, 'status': STATUS_OK}
+                # Log the current threshold and the corresponding metrics to MLflow
+                mlflow.log_metric(f'recall_threshold_{threshold}', recall)
+                mlflow.log_metric(f'precision_threshold_{threshold}', precision)
+                mlflow.log_metric(f'accuracy_threshold_{threshold}', accuracy)
+                mlflow.log_metric(f'f1_score_threshold_{threshold}', f1)
+                mlflow.log_metric(f'threshold', threshold)
+
+                # Keep track of the best recall and corresponding threshold
+                if recall >= best_recall:
+                    best_recall = recall
+                    best_threshold = threshold
+
+            # Introduce a penalty for low precision, if desired
+            precision_threshold = 0.4
+            penalty = 0.0
+            if precision < precision_threshold:
+                penalty = 1.0 - precision / precision_threshold
+
+            # Optimize for recall, but with a penalty if precision is too low
+            loss = -best_recall + penalty
+
+            # Log the best threshold and its recall to MLflow
+            mlflow.log_metric('best_recall', best_recall)
+            mlflow.log_metric('best_threshold', best_threshold)
+
+            return {'loss': loss, 'status': STATUS_OK}
 
     def random_forest_objective(self, params):
         params['n_estimators'] = int(params['n_estimators'])
@@ -142,8 +173,17 @@ class ModelHyperparameterTuner:
 
         with mlflow.start_run(run_name=run_name, nested=True):
             model = RandomForestClassifier(**params, random_state=42)
-            model.fit(self.X_train, self.y_train)
-            y_pred = model.predict(self.X_test)
+
+            # Create pipeline with TF-IDF vectorizer and logistic regression model
+            text_clf = Pipeline([
+                ('tfidfvect', TfidfVectorizer(ngram_range=(3, 3), stop_words='english')),
+                ('clf', model)
+            ])
+
+            # Train the classifier on training data
+            classifier = text_clf.fit(self.X_train, self.y_train)
+
+            y_pred = classifier.predict(self.X_test)
 
             accuracy = accuracy_score(self.y_test, y_pred)
             precision = precision_score(self.y_test, y_pred, average='weighted')
