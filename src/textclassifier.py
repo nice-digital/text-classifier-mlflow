@@ -354,7 +354,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataset_testing_path', type=str, help='Path to the testing dataset CSV.', required=True)
     parser.add_argument('--model_type', type=str, choices=['logistic_regression', 'random_forest'],
                         help='Type of model to tune.', required=True)
-    parser.add_argument('--max_evals', type=int, default=5,
+    parser.add_argument('--max_evals', type=int, default=50,
                         help='Maximum number of evaluations for hyperparameter optimization.')
 
     args = parser.parse_args()
