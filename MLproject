@@ -5,10 +5,21 @@ conda_env: conda.yaml
 entry_points:
   main:
     parameters:
-      experiment_name: {type: str}
+      experiment_name: {type: str, default: "Experiment"}
       dataset_name: {type: str}
       dataset_training_path: {type: str}
       dataset_testing_path: {type: str}
       model_type: {type: str, default: "logistic_regression"}
       max_evals: {type: int, default: 100}
-    command: "python src/model_tuner.py --experiment_name {experiment_name} --dataset_name {dataset_name} --dataset_training_path {dataset_training_path} --dataset_testing_path {dataset_testing_path} --model_type {model_type} --max_evals {max_evals}"
+    command: "python src/textclassifier.py --experiment_name {experiment_name} --dataset_name {dataset_name} --dataset_training_path {dataset_training_path} --dataset_testing_path {dataset_testing_path} --model_type {model_type} --max_evals {max_evals}"
+#
+#****Notes****
+#To run this MLflow project, in a command line (conda and MLflow should be installed), run the following command. 
+#
+#mlflow run . --experiment-name="Exp" -Pdataset_name="Test" -Pdataset_training_path="data\raw\training_combined_4637_70percent_568_70percent.csv" -Pdataset_testing_path="data\raw\testing_combined_4637_30percent_568_30percent.csv" -Pmodel_type="logistic_regression" -Pmax_evals=2
+#	
+#The mlflow run command will create an isolated environment based on your MLproject file, ensuring your global environment is unaffected
+#After setting up the environment, it runs the python command given under 'command' section. 
+#Note that in the command used, --experiment-name is s a built-in MLflow argument used to log a run under a specific experiment.
+#Others are user defined parameters
+#For the datasets referred to here, check the folders linked to from the sharepoint page
