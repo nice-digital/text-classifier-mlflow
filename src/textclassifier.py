@@ -88,7 +88,8 @@ class ModelHyperparameterTuner:
 
         # Log dataset details to MLflow for tracking
         run_name = "Dataset Details"
-        with mlflow.start_run(run_name= run_name):
+        with mlflow.start_run(run_name=run_name):
+            #mlflow.set_tag("mlflow.runName", run_name)
             mlflow.log_param('dataset', self.dataset_name)
             mlflow.log_param('num_training_samples', training_data.shape[0])
             mlflow.log_param('num_testing_samples', testing_data.shape[0])
@@ -284,6 +285,7 @@ class ModelHyperparameterTuner:
             best_model = best_trial['result'].get('model')
 
             print(best_params)
+
             with mlflow.start_run(run_name="Best_Model", nested = True) as run:
                 # Find the trial with the lowest loss
                 # Log the best parameters found
@@ -325,15 +327,14 @@ def main(experiment_name, dataset_name, dataset_training_path, dataset_testing_p
     """
 
     # Initialize the tuner class
-    # The logs are created in mlruns folder within the project folder. By setting the following line, the logs
+    # The logs are created in mlruns folder within the project folder.
+    mlflow.set_tracking_uri("file:./mlruns")
+    # By setting the following line, the logs
     # will be directed to the local mlflow tracking ui running on port 5000. Replace 5000 with 8080 if a mlflow
     # tracking server is started. In the below line of code, it connects to a mlflow UI started with 'mlflow ui'
-    # from the command line within the project folder
-    mlflow.set_tracking_uri("http://localhost:5000")
+    # from the command line within the project folder. The mlflow ui should be up & running if below line is on
+    #mlflow.set_tracking_uri("http://localhost:5000")
 
-    # Set or create an MLflow experiment where the results will be logged.
-    # If the experiment with the given name doesn't exist, MLflow will create it.
-    mlflow.set_experiment(experiment_name)
 
     # Initialize the ModelHyperparameterTuner class with the dataset details.
     tuner = ModelHyperparameterTuner(dataset_name, dataset_training_path, dataset_testing_path)
